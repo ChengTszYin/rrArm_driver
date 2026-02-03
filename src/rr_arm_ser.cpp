@@ -71,9 +71,10 @@ void RR_Arm::readJointState(uint8_t* byteArray, int length)
     }
 }
 
-void RR_Arm::getJointState()
+float* RR_Arm::getJointState()
 {
-    ROS_INFO("JointState: %.3f %.3f %.3f %.3f %.3f %.3f\n", joint_state[0], joint_state[1], joint_state[2], joint_state[3], joint_state[4], joint_state[5]);
+    return joint_state;
+    // ROS_INFO("JointState: %.3f %.3f %.3f %.3f %.3f %.3f\n", joint_state[0], joint_state[1], joint_state[2], joint_state[3], joint_state[4], joint_state[5]);
 }
 
 uint8_t RR_Arm::checksum(uint8_t data[], int len) {

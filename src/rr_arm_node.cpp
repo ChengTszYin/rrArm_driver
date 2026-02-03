@@ -9,12 +9,13 @@
 
 std::string com = "/dev/ttyACM0";
 RR_Arm rr_(com);
+constexpr size_t NUM_JOINTS = 6;
 
 class rrArmTrajectoryServer
 {
     public:
     rrArmTrajectoryServer(ros::NodeHandle& _nh):
-    as_(_nh, "/arm_position_controller/follow_joint_trajectory", false)
+    as_(_nh, "/rArm_controller/follow_joint_trajectory", false)
     {
         as_.registerGoalCallback(boost::bind(&rrArmTrajectoryServer::executeCallback, this));
         as_.registerPreemptCallback(boost::bind(&rrArmTrajectoryServer::preemptedCallback, this));
@@ -24,7 +25,7 @@ class rrArmTrajectoryServer
 
     void executeCallback()
     {
-        ROS_INFO("Preempt / execute → execute goal");
+        ROS_INFO("execute goal");
         auto goal = as_.acceptNewGoal();
         
         if(!goal)
@@ -36,7 +37,7 @@ class rrArmTrajectoryServer
 
     void preemptedCallback()
     {
-        ROS_INFO("Preempt / cancel requested → stopping current motion");
+        ROS_INFO("cancel requested");
     };
 
     private:
@@ -46,7 +47,7 @@ class rrArmTrajectoryServer
 int main(int argc, char* argv[])
 {
     ros::init(argc, argv, "rr_arm_node");
-    ros::NodeHandle nh("~");
+    ros::NodeHandle nh;
     rrArmTrajectoryServer server(nh);
     ros::Publisher joint_state_pub_ = nh.advertise<sensor_msgs::JointState>("/joint_states", 1000);
     ros::Rate loop_rate(100);
@@ -55,7 +56,12 @@ int main(int argc, char* argv[])
         if(rr_.checkByte())
         {
             rr_.readJointState(rr_.byteArray, sizeof(rr_.byteArray));
-            rr_.getJointState();
+            float* _joint_state = rr_.getJointState();
+            sensor_msgs::JointState js;
+            js.header.stamp = ros::Time::now();
+            js.name = {"joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"};
+            js.position.assign(_joint_state, _joint_state + 6);
+            joint_state_pub_.publish(js);
         }
         ros::spinOnce();
         loop_rate.sleep();

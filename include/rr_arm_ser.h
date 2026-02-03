@@ -26,7 +26,7 @@ class RR_Arm
     void readJointState(uint8_t* byteArray, int length);
     uint8_t checksum(uint8_t data[], int len);
     uint8_t byteArray[js_byte_size_];
-    void getJointState();
+    float* getJointState();
     ~RR_Arm();
 
     private:
