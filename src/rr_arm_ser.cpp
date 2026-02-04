@@ -25,26 +25,39 @@ RR_Arm::RR_Arm(const std::string& port_name): com(port_name)
 
 void RR_Arm::updateGoalTrajectory(const trajectory_msgs::JointTrajectory& traj)
 {
-    for(size_t p = 0; p < traj.points.size(); ++p)
+    auto points = traj.points;
+    auto joint_names = traj.joint_names;
+    size_t point_size = points.size();
+    ROS_INFO("Receive total num_point: %li", point_size);
+    for(size_t p = 0; p < point_size; ++p)
     {
-        if(p)
+        if(p==point_size-2)
         {
-            ROS_INFO("At point %zu", p);
-            auto pos = traj.points[p]; 
-            for(size_t q = 0; q < pos.positions.size(); ++q)
+            auto point = points[p];
+            if(point.positions.size() != NUM_JOINTS)
             {
-                m_pos[q] = pos.positions[q] * 180 / M_PI;
-                ROS_INFO("Position[%zu] = %.3f", q, m_pos[q]);
+                ROS_ERROR("Point %zu has wrong number of positions (%zu)", p, point.positions.size());
+                continue;
             }
+            ROS_INFO("At point %zu", p);
+            std::copy(point.positions.begin(), point.positions.begin() + NUM_JOINTS, _setPosition);
+            std::copy(point.velocities.begin(), point.velocities.begin() + NUM_JOINTS, _setVelocity);
+            // ROS_INFO("_setPosition: %.3f %.3f %.3f %.3f %.3f %.3f", _setPosition[0], _setPosition[1], _setPosition[2], _setPosition[3], _setPosition[4], _setPosition[5]);
+            // ROS_INFO("_setVelocity: %.3f %.3f %.3f %.3f %.3f %.3f", _setVelocity[0], _setVelocity[1], _setVelocity[2], _setVelocity[3], _setVelocity[4], _setVelocity[5]);
+            for(auto& n: _setPosition)
+            {
+                n *= static_cast<float>(180.0 / M_PI);
+            }
+            driveSpeed(_setPosition, _setVelocity);
         }
     }
-    driveSpeed(m_pos);
 }
 
-void RR_Arm::driveSpeed(const float (&angle)[6])
+void RR_Arm::driveSpeed(const float (&angle)[6], const float (&velocity)[6])
 {
-    uint8_t buffer[24];
-    memcpy(buffer, angle, sizeof(angle));
+    uint8_t buffer[48] = {0};
+    memcpy(&buffer[0], angle, NUM_JOINTS * sizeof(float));
+    memcpy(&buffer[24], velocity, NUM_JOINTS * sizeof(float));
     ser_ptr->write(buffer, sizeof(buffer));
 }
 
@@ -67,6 +80,10 @@ void RR_Arm::readJointState(uint8_t* byteArray, int length)
     {
         uint8_t temp[4];
         memcpy(temp, byteArray + i*4, 4);
+        for(auto& n:temp)
+        {
+            n *= M_PI / 180.0;
+        }
         memcpy(&joint_state[i], temp, sizeof(float));
     }
 }

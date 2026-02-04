@@ -9,7 +9,6 @@
 
 std::string com = "/dev/ttyACM0";
 RR_Arm rr_(com);
-constexpr size_t NUM_JOINTS = 6;
 
 class rrArmTrajectoryServer
 {
@@ -26,13 +25,14 @@ class rrArmTrajectoryServer
     void executeCallback()
     {
         ROS_INFO("execute goal");
-        auto goal = as_.acceptNewGoal();
-        
-        if(!goal)
+        auto goal_ptr = as_.acceptNewGoal();
+        if(!goal_ptr)
         {
             ROS_INFO("Goal pointer is null");
             return;
         }
+        auto traject = goal_ptr -> trajectory;
+        rr_.updateGoalTrajectory(traject);        
     };
 
     void preemptedCallback()
@@ -42,6 +42,7 @@ class rrArmTrajectoryServer
 
     private:
     actionlib::SimpleActionServer<control_msgs::FollowJointTrajectoryAction> as_;
+    
 };
 
 int main(int argc, char* argv[])
