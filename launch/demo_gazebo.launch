@@ -18,4 +18,6 @@
     <arg name="load_robot_description" value="false" />
     <arg name="moveit_controller_manager" value="ros_control" />
   </include>
+  <!-- <node pkg="rArm" type="rr_arm_node" name="rr_arm_node" output="screen">
+  </node> -->
 </launch>

@@ -30,10 +30,18 @@ add_library(${PROJECT_NAME}
 
 add_executable(rr_arm_node src/rr_arm_node.cpp)
 
+# add_executable(test_serial src/test_serial.cpp)
+
+
 target_link_libraries(rr_arm_node
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
+
+# target_link_libraries(test_serial
+#   ${PROJECT_NAME}
+#   ${catkin_LIBRARIES}
+# )
 
 install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

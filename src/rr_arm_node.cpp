@@ -56,6 +56,7 @@ int main(int argc, char* argv[])
     {
         if(rr_.checkByte())
         {
+            // ROS_INFO("receive data");
             rr_.readJointState(rr_.byteArray, sizeof(rr_.byteArray));
             float* _joint_state = rr_.getJointState();
             sensor_msgs::JointState js;

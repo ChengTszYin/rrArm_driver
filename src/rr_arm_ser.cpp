@@ -23,42 +23,85 @@ RR_Arm::RR_Arm(const std::string& port_name): com(port_name)
     } 
 };
 
+bool RR_Arm::waitACK(int timeout_ms)
+{
+    auto start_time = ros::Time::now();
+    uint8_t ack_byte;
+    size_t byte_size;
+    while((ros::Time::now() - start_time).toSec() < (timeout_ms / 1000.0))
+    {
+        byte_size = ser_ptr->read(&ack_byte, 1);
+        if(byte_size == 1 && ack_byte == 'D')
+        {
+            return true;
+        }
+        ros::Duration(0.01).sleep();
+    }
+    return false;   
+}
+
 void RR_Arm::updateGoalTrajectory(const trajectory_msgs::JointTrajectory& traj)
 {
     auto points = traj.points;
     auto joint_names = traj.joint_names;
     size_t point_size = points.size();
-    ROS_INFO("Receive total num_point: %li", point_size);
+    // ROS_INFO("Receive total num_point: %li", point_size);
     for(size_t p = 0; p < point_size; ++p)
     {
-        if(p==point_size-2)
+        auto point = points[p];
+        short step = point_size - 1 - p;
+        if(point.positions.size() != NUM_JOINTS)
         {
-            auto point = points[p];
-            if(point.positions.size() != NUM_JOINTS)
-            {
-                ROS_ERROR("Point %zu has wrong number of positions (%zu)", p, point.positions.size());
-                continue;
-            }
-            ROS_INFO("At point %zu", p);
-            std::copy(point.positions.begin(), point.positions.begin() + NUM_JOINTS, _setPosition);
-            std::copy(point.velocities.begin(), point.velocities.begin() + NUM_JOINTS, _setVelocity);
-            // ROS_INFO("_setPosition: %.3f %.3f %.3f %.3f %.3f %.3f", _setPosition[0], _setPosition[1], _setPosition[2], _setPosition[3], _setPosition[4], _setPosition[5]);
+            ROS_ERROR("Point %zu has wrong number of positions (%zu)", p, point.positions.size());
+            continue;
+        }
+
+        bool send_this_point = false;
+        if (p == 0) {
+            send_this_point = true;                    
+        }
+        else if (p == point_size) {
+            send_this_point = true;                   
+        }
+        else if ((p % step_size) == 0) {
+            send_this_point = true;                    
+        }
+
+        if (send_this_point)
+        {
+            ROS_INFO("Sending point %zu / %zu", p, point_size);
+
+            std::copy(point.positions.begin(),   point.positions.begin()   + NUM_JOINTS, _setPosition);
+            std::copy(point.velocities.begin(),  point.velocities.begin()  + NUM_JOINTS, _setVelocity);
+            ROS_INFO("_setPosition: %.3f %.3f %.3f %.3f %.3f %.3f", _setPosition[0], _setPosition[1], _setPosition[2], _setPosition[3], _setPosition[4], _setPosition[5]);
             // ROS_INFO("_setVelocity: %.3f %.3f %.3f %.3f %.3f %.3f", _setVelocity[0], _setVelocity[1], _setVelocity[2], _setVelocity[3], _setVelocity[4], _setVelocity[5]);
-            for(auto& n: _setPosition)
-            {
-                n *= static_cast<float>(180.0 / M_PI);
+            // Convert to degrees (assuming STM32 expects degrees)
+            for (auto& n : _setPosition) {
+                n *= 180.0f / static_cast<float>(M_PI);
             }
-            driveSpeed(_setPosition, _setVelocity);
+
+            short step = static_cast<short>(p);   // or use point_size - 1 - p if you prefer reverse numbering
+
+            driveSpeed(step, _setPosition, _setVelocity);
+
+            // Optional but strongly recommended: wait for confirmation
+            // if (!waitForAck(8000)) {  // implement waitForAck as discussed earlier
+            //     ROS_ERROR("Timeout after point %zu", p);
+            //     return;  // or break, depending on policy
+            // }
         }
     }
 }
 
-void RR_Arm::driveSpeed(const float (&angle)[6], const float (&velocity)[6])
+void RR_Arm::driveSpeed(short int &step, const float (&angle)[6], const float (&velocity)[6])
 {
-    uint8_t buffer[48] = {0};
-    memcpy(&buffer[0], angle, NUM_JOINTS * sizeof(float));
-    memcpy(&buffer[24], velocity, NUM_JOINTS * sizeof(float));
+    uint8_t buffer[50] = {0};
+    buffer[0] = static_cast<uint8_t>(step & 0xFF);          // LSB
+    buffer[1] = static_cast<uint8_t>((step >> 8) & 0xFF);
+    memcpy(&buffer[2], angle, NUM_JOINTS * sizeof(float));
+    memcpy(&buffer[26], velocity, NUM_JOINTS * sizeof(float));
     ser_ptr->write(buffer, sizeof(buffer));
+    ros::Duration(0.05).sleep();
 }
 
 int RR_Arm::checkByte()
@@ -76,15 +119,11 @@ int RR_Arm::checkByte()
 
 void RR_Arm::readJointState(uint8_t* byteArray, int length)
 {
-    for(int i=0; i < 6; ++i)
+    for(int i = 0; i < 6; ++i)
     {
-        uint8_t temp[4];
-        memcpy(temp, byteArray + i*4, 4);
-        for(auto& n:temp)
-        {
-            n *= M_PI / 180.0;
-        }
-        memcpy(&joint_state[i], temp, sizeof(float));
+        memcpy(&joint_state[i], byteArray + i*4, 4);
+
+        joint_state[i] *= (M_PI / 180.0f);
     }
 }
 
