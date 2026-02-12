@@ -60,7 +60,7 @@ void RR_Arm::updateGoalTrajectory(const trajectory_msgs::JointTrajectory& traj)
         if (p == 0) {
             send_this_point = true;                    
         }
-        else if (p == point_size) {
+        else if (p == point_size-1) {
             send_this_point = true;                   
         }
         else if ((p % step_size) == 0) {
@@ -79,18 +79,24 @@ void RR_Arm::updateGoalTrajectory(const trajectory_msgs::JointTrajectory& traj)
             for (auto& n : _setPosition) {
                 n *= 180.0f / static_cast<float>(M_PI);
             }
-
             short step = static_cast<short>(p);   // or use point_size - 1 - p if you prefer reverse numbering
-
             driveSpeed(step, _setPosition, _setVelocity);
-
-            // Optional but strongly recommended: wait for confirmation
-            // if (!waitForAck(8000)) {  // implement waitForAck as discussed earlier
-            //     ROS_ERROR("Timeout after point %zu", p);
-            //     return;  // or break, depending on policy
-            // }
         }
     }
+}
+
+bool RR_Arm::checkTrajectoryFinished()
+{
+    float* joint_state_ = getJointState();
+    for(int i = 0; i < NUM_JOINTS; ++i)
+    {
+        if(abs(joint_state_[i] - _setPosition[i]) > TOLERANCE)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 void RR_Arm::driveSpeed(short int &step, const float (&angle)[6], const float (&velocity)[6])

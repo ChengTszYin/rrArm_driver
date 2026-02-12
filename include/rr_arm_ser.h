@@ -11,6 +11,7 @@
 #include <cmath>
 
 #define js_byte_size_ 24
+#define TOLERANCE 0.01f
 
 constexpr size_t NUM_JOINTS = 6;
 constexpr size_t step_size = 10;
@@ -20,6 +21,7 @@ class RR_Arm
     public:
     RR_Arm(const std::string& port_name);
     void updateGoalTrajectory(const trajectory_msgs::JointTrajectory& traj);
+    bool checkTrajectoryFinished();
     bool waitACK(int timeout_ms);
     void driveSpeed(short& step, const float (&angle)[6], const float (&velocity)[6]);
     int checkByte();

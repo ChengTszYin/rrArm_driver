@@ -5,7 +5,8 @@
 #include <control_msgs/FollowJointTrajectoryAction.h>
 #include <boost/function.hpp>
 #include <sensor_msgs/JointState.h>
-// #include <trajectory_msgs/JointTrajectory.h>
+
+#define TIMEOUT_DURATION 10.0
 
 std::string com = "/dev/ttyACM0";
 RR_Arm rr_(com);
@@ -26,23 +27,71 @@ class rrArmTrajectoryServer
     {
         ROS_INFO("execute goal");
         auto goal_ptr = as_.acceptNewGoal();
-        if(!goal_ptr)
+        if(!goal_ptr || goal_ptr->trajectory.points.empty())
         {
             ROS_INFO("Goal pointer is null");
+            control_msgs::FollowJointTrajectoryResult result;
+            result.error_code = result.INVALID_GOAL;
+            as_.setAborted(result); 
             return;
         }
+
+        active_goal_       = true;
+        preempt_requested_ = false;
+        executed_          = false;
+
+        ros::Time start_time = ros::Time::now();    // record the start time of trajectory execution
         auto traject = goal_ptr -> trajectory;
-        rr_.updateGoalTrajectory(traject);        
+        rr_.updateGoalTrajectory(traject);
+
+        while(ros::ok() && active_goal_)
+        {
+            if (preempt_requested_)
+            {
+                ROS_INFO("Goal preempted");
+                control_msgs::FollowJointTrajectoryResult result;
+                result.error_code = result.INVALID_GOAL;
+                as_.setPreempted(result);
+                active_goal_ = false;
+                return;
+            }
+
+            if(rr_.checkTrajectoryFinished())
+            {
+                ROS_INFO("Trajectory execution finished successfully");
+                executed_ = true;
+                control_msgs::FollowJointTrajectoryResult result;
+                result.error_code = result.SUCCESSFUL;
+                as_.setSucceeded(result);
+                active_goal_ = false;
+                break;
+            }
+            if((ros::Time::now() - start_time) > ros::Duration(TIMEOUT_DURATION))   //
+            {
+                ROS_INFO("Trajectory execution timed out");
+                control_msgs::FollowJointTrajectoryResult result;
+                result.error_code = result.OLD_HEADER_TIMESTAMP;
+                as_.setAborted(result);
+                active_goal_ = false;
+                executed_ = false;
+                break;
+            }
+            ros::Duration(0.02).sleep();
+            ros::spinOnce();
+        }
     };
 
     void preemptedCallback()
     {
-        ROS_INFO("cancel requested");
+        ROS_INFO("Preempt requested");
+        preempt_requested_ = true;
     };
 
     private:
     actionlib::SimpleActionServer<control_msgs::FollowJointTrajectoryAction> as_;
-    
+    bool active_goal_       = false;
+    bool preempt_requested_ = false;
+    bool executed_          = false;
 };
 
 int main(int argc, char* argv[])
@@ -56,7 +105,6 @@ int main(int argc, char* argv[])
     {
         if(rr_.checkByte())
         {
-            // ROS_INFO("receive data");
             rr_.readJointState(rr_.byteArray, sizeof(rr_.byteArray));
             float* _joint_state = rr_.getJointState();
             sensor_msgs::JointState js;
