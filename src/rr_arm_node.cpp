@@ -3,10 +3,12 @@
 #include <string>
 #include <actionlib/server/simple_action_server.h>
 #include <control_msgs/FollowJointTrajectoryAction.h>
-#include <boost/function.hpp>
+#include <boost/function.hpp> 
 #include <sensor_msgs/JointState.h>
+#include <moveit/move_group_interface/move_group_interface.h>
+#include <rArm/callRobot.h>
 
-#define TIMEOUT_DURATION 10.0
+#define TIMEOUT_DURATION 5.0
 
 std::string com = "/dev/ttyACM0";
 RR_Arm rr_(com);
@@ -92,15 +94,34 @@ class rrArmTrajectoryServer
     bool active_goal_       = false;
     bool preempt_requested_ = false;
     bool executed_          = false;
+    bool robotReady_;
 };
+
+bool callPoses(rArm::callRobot::Request &req, rArm::callRobot::Response &res)
+{
+    float angle[6] = {0.0f};
+    float velocity[6] = {10.0f};
+    short int step = 1;
+    for(int i = 0; i < 6; ++i)
+    {
+        float angle = static_cast<float>(req.poses[i]);
+    }
+    rr_.driveSpeed(step, angle, velocity);
+    //Check if the trajectory execution is successful
+    return res.result;
+}
 
 int main(int argc, char* argv[])
 {
     ros::init(argc, argv, "rr_arm_node");
+    ros::Time::init();
     ros::NodeHandle nh;
     rrArmTrajectoryServer server(nh);
     ros::Publisher joint_state_pub_ = nh.advertise<sensor_msgs::JointState>("/joint_states", 1000);
+    ros::ServiceServer pose_service = nh.advertiseService("call_robot_poses", callPoses);
     ros::Rate loop_rate(100);
+    rr_.BackHome();
+    ROS_INFO("Joint state initialized\n");
     while(ros::ok())
     {
         if(rr_.checkByte())

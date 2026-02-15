@@ -10,12 +10,24 @@ find_package(catkin REQUIRED COMPONENTS
   trajectory_msgs
   actionlib 
   actionlib_msgs
+  moveit_ros_planning_interface
+  message_generation
+)
+
+add_service_files(
+  FILES
+  callRobot.srv
+)
+
+generate_messages(
+  DEPENDENCIES
+  
 )
 
 catkin_package(
  INCLUDE_DIRS include
  LIBRARIES rArm
- CATKIN_DEPENDS roscpp rospy sensor_msgs serial control_msgs trajectory_msgs actionlib actionlib_msgs
+ CATKIN_DEPENDS roscpp rospy sensor_msgs serial control_msgs trajectory_msgs actionlib actionlib_msgs moveit_ros_planning_interface
 #  DEPENDS system_lib
 )
 

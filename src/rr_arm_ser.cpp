@@ -23,6 +23,14 @@ RR_Arm::RR_Arm(const std::string& port_name): com(port_name)
     } 
 };
 
+void RR_Arm::BackHome()
+{
+    float home_position[NUM_JOINTS] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    float home_velocity[NUM_JOINTS] = {10.0f, 10.0f, 10.0f, 10.0f, 10.0f, 10.0f};
+    short step = 1;
+    driveSpeed(step, home_position, home_velocity);
+}
+
 bool RR_Arm::waitACK(int timeout_ms)
 {
     auto start_time = ros::Time::now();
@@ -69,7 +77,8 @@ void RR_Arm::updateGoalTrajectory(const trajectory_msgs::JointTrajectory& traj)
 
         if (send_this_point)
         {
-            ROS_INFO("Sending point %zu / %zu", p, point_size);
+            ROS_INFO("Sending point %zu / %zu", p, point_size-1
+            );
 
             std::copy(point.positions.begin(),   point.positions.begin()   + NUM_JOINTS, _setPosition);
             std::copy(point.velocities.begin(),  point.velocities.begin()  + NUM_JOINTS, _setVelocity);
@@ -90,7 +99,7 @@ bool RR_Arm::checkTrajectoryFinished()
     float* joint_state_ = getJointState();
     for(int i = 0; i < NUM_JOINTS; ++i)
     {
-        if(abs(joint_state_[i] - _setPosition[i]) > TOLERANCE)
+        if(abs(joint_state_[i] - _setPosition[i]) < TOLERANCE)
         {
             return false;
         }

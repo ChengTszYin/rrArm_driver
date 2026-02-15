@@ -22,6 +22,7 @@ class RR_Arm
     RR_Arm(const std::string& port_name);
     void updateGoalTrajectory(const trajectory_msgs::JointTrajectory& traj);
     bool checkTrajectoryFinished();
+    void BackHome();
     bool waitACK(int timeout_ms);
     void driveSpeed(short& step, const float (&angle)[6], const float (&velocity)[6]);
     int checkByte();
