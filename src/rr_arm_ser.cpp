@@ -94,12 +94,14 @@ void RR_Arm::updateGoalTrajectory(const trajectory_msgs::JointTrajectory& traj)
     }
 }
 
-bool RR_Arm::checkTrajectoryFinished()
+
+bool RR_Arm::checkTrajectoryFinished(float* set_point, int len)
 {
-    float* joint_state_ = getJointState();
-    for(int i = 0; i < NUM_JOINTS; ++i)
+    float* joint_state = getJointState();
+    for(int i = 0; i < len; ++i)
     {
-        if(abs(joint_state_[i] - _setPosition[i]) < TOLERANCE)
+        ROS_INFO("JointState_radian %i: %.3f, SetPoint: %.3f\n",i , joint_state[i], set_point[i]);
+        if(abs(joint_state[i] - set_point[i]) > TOLERANCE)
         {
             return false;
         }
@@ -147,6 +149,24 @@ float* RR_Arm::getJointState()
     return joint_state;
     // ROS_INFO("JointState: %.3f %.3f %.3f %.3f %.3f %.3f\n", joint_state[0], joint_state[1], joint_state[2], joint_state[3], joint_state[4], joint_state[5]);
 }
+
+float* RR_Arm::getTrajectoryFinalPoint(const trajectory_msgs::JointTrajectory& traj)
+{
+    static float _setPosition[NUM_JOINTS] = {0.0f};
+    if(traj.points.empty())
+    {
+        ROS_ERROR("Trajectory has no points");
+        return _setPosition;
+    }
+    auto final_pose = traj.points.back();
+    if(final_pose.positions.size() != NUM_JOINTS)
+    {
+        ROS_ERROR("Final pose has wrong number of positions (%zu)", final_pose.positions.size());
+        return _setPosition;
+    }
+    std::copy(final_pose.positions.begin(), final_pose.positions.begin() + NUM_JOINTS, _setPosition);
+    return _setPosition;
+}   
 
 uint8_t RR_Arm::checksum(uint8_t data[], int len) {
     int16_t crc = 0;

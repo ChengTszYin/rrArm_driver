@@ -8,7 +8,7 @@
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <rArm/callRobot.h>
 
-#define TIMEOUT_DURATION 5.0
+#define TIMEOUT_DURATION 3.0
 
 std::string com = "/dev/ttyACM0";
 RR_Arm rr_(com);
@@ -42,12 +42,18 @@ class rrArmTrajectoryServer
         preempt_requested_ = false;
         executed_          = false;
 
-        ros::Time start_time = ros::Time::now();    // record the start time of trajectory execution
+        ros::Time start_time = ros::Time::now();    // record the starting time of trajectory execution
         auto traject = goal_ptr -> trajectory;
+        float* final_pose_ptr = rr_.getTrajectoryFinalPoint(traject);
         rr_.updateGoalTrajectory(traject);
 
         while(ros::ok() && active_goal_)
         {
+            if(rr_.checkByte())
+            {
+                rr_.readJointState(rr_.byteArray, sizeof(rr_.byteArray));
+            }
+
             if (preempt_requested_)
             {
                 ROS_INFO("Goal preempted");
@@ -58,7 +64,7 @@ class rrArmTrajectoryServer
                 return;
             }
 
-            if(rr_.checkTrajectoryFinished())
+            if(rr_.checkTrajectoryFinished(final_pose_ptr, 6))
             {
                 ROS_INFO("Trajectory execution finished successfully");
                 executed_ = true;
@@ -68,6 +74,7 @@ class rrArmTrajectoryServer
                 active_goal_ = false;
                 break;
             }
+
             if((ros::Time::now() - start_time) > ros::Duration(TIMEOUT_DURATION))   //
             {
                 ROS_INFO("Trajectory execution timed out");
@@ -100,14 +107,39 @@ class rrArmTrajectoryServer
 bool callPoses(rArm::callRobot::Request &req, rArm::callRobot::Response &res)
 {
     float angle[6] = {0.0f};
+    float angle_rad[6] = {0.0f};
     float velocity[6] = {10.0f};
     short int step = 1;
     for(int i = 0; i < 6; ++i)
     {
-        float angle = static_cast<float>(req.poses[i]);
+        angle[i] = static_cast<float>(req.poses[i]);
+        angle_rad[i] = angle[i] * (M_PI / 180.0f);
     }
+    ros::Time start_time = ros::Time::now();
     rr_.driveSpeed(step, angle, velocity);
-    //Check if the trajectory execution is successful
+    while(ros::ok())
+    {
+        if(rr_.checkByte())
+        {
+            rr_.readJointState(rr_.byteArray, sizeof(rr_.byteArray));
+        }
+
+        if(rr_.checkTrajectoryFinished(angle_rad, 6))
+        {
+            ROS_INFO("Trajectory execution finished successfully");
+            res.result = true;
+            break;
+        }
+
+        if((ros::Time::now() - start_time) > ros::Duration(TIMEOUT_DURATION))   //
+        {
+            ROS_INFO("Trajectory execution timed out");
+            res.result = false;
+            break;
+        }
+        ros::Duration(0.02).sleep();
+        ros::spinOnce();
+    }
     return res.result;
 }
 

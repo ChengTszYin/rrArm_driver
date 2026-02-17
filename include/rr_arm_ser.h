@@ -21,7 +21,7 @@ class RR_Arm
     public:
     RR_Arm(const std::string& port_name);
     void updateGoalTrajectory(const trajectory_msgs::JointTrajectory& traj);
-    bool checkTrajectoryFinished();
+    bool checkTrajectoryFinished(float* set_point, int len);
     void BackHome();
     bool waitACK(int timeout_ms);
     void driveSpeed(short& step, const float (&angle)[6], const float (&velocity)[6]);
@@ -30,6 +30,7 @@ class RR_Arm
     uint8_t checksum(uint8_t data[], int len);
     uint8_t byteArray[js_byte_size_];
     float* getJointState();
+    float* getTrajectoryFinalPoint(const trajectory_msgs::JointTrajectory& traj);
     ~RR_Arm();
 
     private:
