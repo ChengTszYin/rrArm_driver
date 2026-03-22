@@ -87,7 +87,7 @@
         <parent link="link_1" />
         <child link="link_2" />
         <axis xyz="0 0 1" />
-        <limit lower="0" upper="1.57" effort="200" velocity="3" />
+        <limit lower="-1.57" upper="1.57" effort="200" velocity="3" />
     </joint>
     <link name="link_3">
         <inertial>
@@ -116,7 +116,7 @@
         <parent link="link_2" />
         <child link="link_3" />
         <axis xyz="-1 0 0" />
-        <limit lower="0" upper="3.142" effort="200" velocity="3" />
+        <limit lower="-0.52" upper="3.142" effort="200" velocity="3" />
     </joint>
     <link name="link_4">
         <inertial>
@@ -145,7 +145,7 @@
         <parent link="link_3" />
         <child link="link_4" />
         <axis xyz="0 1 0" />
-        <limit lower="0" upper="3.142" effort="200" velocity="3" />
+        <limit lower="-0.52" upper="3.142" effort="200" velocity="3" />
     </joint>
     <link name="link_5">
         <inertial>
@@ -174,7 +174,7 @@
         <parent link="link_4" />
         <child link="link_5" />
         <axis xyz="1 0 0" />
-        <limit lower="0" upper="3.142" effort="200" velocity="3" />
+        <limit lower="-0.52" upper="3.142" effort="200" velocity="3" />
     </joint>
     <link name="link_6">
         <inertial>
@@ -203,7 +203,7 @@
         <parent link="link_5" />
         <child link="link_6" />
         <axis xyz="0 0 1" />
-        <limit lower="0" upper="3.142" effort="200" velocity="3" />
+        <limit lower="-0.52" upper="3.142" effort="200" velocity="3" />
     </joint>
     <transmission name="trans_joint_1">
         <type>transmission_interface/SimpleTransmission</type>

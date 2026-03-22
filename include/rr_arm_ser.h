@@ -10,8 +10,8 @@
 #include <trajectory_msgs/JointTrajectory.h>
 #include <cmath>
 
-#define js_byte_size_ 24
-#define TOLERANCE 0.01f
+#define js_byte_size_ 26
+#define TOLERANCE 0.017453293f
 
 constexpr size_t NUM_JOINTS = 6;
 constexpr size_t step_size = 10;
@@ -27,7 +27,7 @@ class RR_Arm
     void driveSpeed(short& step, const float (&angle)[6], const float (&velocity)[6]);
     int checkByte();
     void readJointState(uint8_t* byteArray, int length);
-    uint8_t checksum(uint8_t data[], int len);
+    uint8_t checksum(std::string& data, size_t len);
     uint8_t byteArray[js_byte_size_];
     float* getJointState();
     float* getTrajectoryFinalPoint(const trajectory_msgs::JointTrajectory& traj);

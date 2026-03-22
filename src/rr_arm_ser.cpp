@@ -25,7 +25,7 @@ RR_Arm::RR_Arm(const std::string& port_name): com(port_name)
 
 void RR_Arm::BackHome()
 {
-    float home_position[NUM_JOINTS] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    float home_position[NUM_JOINTS] = {0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f};
     float home_velocity[NUM_JOINTS] = {10.0f, 10.0f, 10.0f, 10.0f, 10.0f, 10.0f};
     short step = 1;
     driveSpeed(step, home_position, home_velocity);
@@ -57,7 +57,6 @@ void RR_Arm::updateGoalTrajectory(const trajectory_msgs::JointTrajectory& traj)
     for(size_t p = 0; p < point_size; ++p)
     {
         auto point = points[p];
-        short step = point_size - 1 - p;
         if(point.positions.size() != NUM_JOINTS)
         {
             ROS_ERROR("Point %zu has wrong number of positions (%zu)", p, point.positions.size());
@@ -118,7 +117,7 @@ void RR_Arm::driveSpeed(short int &step, const float (&angle)[6], const float (&
     memcpy(&buffer[2], angle, NUM_JOINTS * sizeof(float));
     memcpy(&buffer[26], velocity, NUM_JOINTS * sizeof(float));
     ser_ptr->write(buffer, sizeof(buffer));
-    ros::Duration(0.05).sleep();
+    ros::Duration(0.08).sleep();    //minimum time for stm32 to execute each segment
 }
 
 int RR_Arm::checkByte()
@@ -128,10 +127,16 @@ int RR_Arm::checkByte()
         return 0;
     }
     std::string rawByte = ser_ptr->read(ser_ptr->available());
-    if(rawByte.size() != js_byte_size_) return 0;
-    
-    memcpy(byteArray, rawByte.data(), js_byte_size_);
-    return 1;
+    if(rawByte.size() == js_byte_size_ && checksum(rawByte, js_byte_size_))
+    {
+        memcpy(byteArray, rawByte.data(), js_byte_size_);
+        return 1;
+    }
+    else
+    {
+        ROS_ERROR("js_byte_size_ is %li, expecting %i", rawByte.size(), js_byte_size_);
+        return 0;
+    }
 }
 
 void RR_Arm::readJointState(uint8_t* byteArray, int length)
@@ -168,12 +173,12 @@ float* RR_Arm::getTrajectoryFinalPoint(const trajectory_msgs::JointTrajectory& t
     return _setPosition;
 }   
 
-uint8_t RR_Arm::checksum(uint8_t data[], int len) {
-    int16_t crc = 0;
-    for (int i = 0; i < len; i++) {
-        crc = (crc + data[i]) & 0xFF;
+uint8_t RR_Arm::checksum(std::string& data, size_t len) {
+    uint8_t sum = 0;
+    for (size_t i = 0; i < len; ++i) {
+        sum += static_cast<uint8_t>(data[i]);
     }
-    return crc;
+    return sum;
 }
 
 RR_Arm::~RR_Arm()

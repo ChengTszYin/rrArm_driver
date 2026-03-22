@@ -2,7 +2,7 @@ import serial
 import time
 import struct
 
-values = [50.5, 100.2, 112.2, 20.5, 33.8, 40.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+values = [50.5, 100.2, 112.2, 20.5, 33.8, 40.8]
 zeros = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 steps = [values, zeros]
 val  = [55.0]
