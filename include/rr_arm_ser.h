@@ -10,7 +10,7 @@
 #include <trajectory_msgs/JointTrajectory.h>
 #include <cmath>
 
-#define js_byte_size_ 26
+#define js_byte_size_ 25
 #define TOLERANCE 0.017453293f
 
 constexpr size_t NUM_JOINTS = 6;
