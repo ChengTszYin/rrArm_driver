@@ -51,6 +51,7 @@ class rrArmTrajectoryServer
         {
             if(rr_.checkByte())
             {
+                ROS_INFO("read data");
                 rr_.readJointState(rr_.byteArray, sizeof(rr_.byteArray));
             }
 

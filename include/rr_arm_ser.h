@@ -28,6 +28,7 @@ class RR_Arm
     int checkByte();
     void readJointState(uint8_t* byteArray, int length);
     uint8_t checksum(std::string& data, size_t len);
+    uint8_t getCRC(uint8_t* data, uint8_t len);
     uint8_t byteArray[js_byte_size_];
     float* getJointState();
     float* getTrajectoryFinalPoint(const trajectory_msgs::JointTrajectory& traj);
