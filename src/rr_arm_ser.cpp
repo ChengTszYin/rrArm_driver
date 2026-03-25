@@ -79,8 +79,8 @@ void RR_Arm::updateGoalTrajectory(const trajectory_msgs::JointTrajectory& traj)
             ROS_INFO("Sending point %zu / %zu", p, point_size-1
             );
 
-            std::copy(point.positions.begin(),   point.positions.begin()   + NUM_JOINTS, _setPosition);
-            std::copy(point.velocities.begin(),  point.velocities.begin()  + NUM_JOINTS, _setVelocity);
+            std::copy(point.positions.begin(),   point.positions.begin()  + NUM_JOINTS, _setPosition);
+            std::copy(point.velocities.begin(),  point.velocities.begin() + NUM_JOINTS, _setVelocity);
             ROS_INFO("_setPosition: %.3f %.3f %.3f %.3f %.3f %.3f", _setPosition[0], _setPosition[1], _setPosition[2], _setPosition[3], _setPosition[4], _setPosition[5]);
             // ROS_INFO("_setVelocity: %.3f %.3f %.3f %.3f %.3f %.3f", _setVelocity[0], _setVelocity[1], _setVelocity[2], _setVelocity[3], _setVelocity[4], _setVelocity[5]);
             // Convert to degrees (assuming STM32 expects degrees)
@@ -111,11 +111,20 @@ bool RR_Arm::checkTrajectoryFinished(float* set_point, int len)
 
 void RR_Arm::driveSpeed(short int &step, const float (&angle)[6], const float (&velocity)[6])
 {
+    for (int i = 0; i < 6; ++i) {
+        ROS_INFO("angle %i: %.3f, velocity: %.3f\n",i , angle[i], velocity[i]);
+    }
     uint8_t buffer[51] = {0};
-    buffer[0] = static_cast<uint8_t>(step & 0xFF);          // LSB
+    buffer[0] = static_cast<uint8_t>(step & 0xFF);         
     buffer[1] = static_cast<uint8_t>((step >> 8) & 0xFF);
-    memcpy(&buffer[2], angle, NUM_JOINTS * sizeof(float));
-    memcpy(&buffer[26], velocity, NUM_JOINTS * sizeof(float));
+    float angle_deg[6];
+    float velocity_deg_per_sec[6];   // or keep velocity in rad/s if your STM32 expects it
+    for (int i = 0; i < 6; ++i) {
+        angle_deg[i] = angle[i] * 180.0f / M_PI;           // radians to degrees
+        velocity_deg_per_sec[i] = velocity[i] * 180.0f / M_PI;  // optional: also convert velocity
+    }
+    memcpy(&buffer[2],  angle_deg, 6 * sizeof(float));
+    memcpy(&buffer[26], velocity_deg_per_sec, 6 * sizeof(float));  // change if you don't want to convert velocity
     uint8_t crc = getCRC(buffer, 51);
     buffer[50] = crc;
     ser_ptr->write(buffer, sizeof(buffer));
