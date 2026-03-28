@@ -27,36 +27,27 @@ class rrArmTrajectoryServer
 
     void executeCallback()
     {
-        ROS_INFO("execute goal");
+        ROS_INFO("New FollowJointTrajectory goal received");
+
         auto goal_ptr = as_.acceptNewGoal();
-        if(!goal_ptr || goal_ptr->trajectory.points.empty())
-        {
-            ROS_INFO("Goal pointer is null");
-            control_msgs::FollowJointTrajectoryResult result;
-            result.error_code = result.INVALID_GOAL;
-            as_.setAborted(result); 
+        if (!goal_ptr || goal_ptr->trajectory.points.empty()) {
+            as_.setAborted();
             return;
         }
 
-        active_goal_       = true;
+        active_goal_ = true;
         preempt_requested_ = false;
-        executed_          = false;
 
-        ros::Time start_time = ros::Time::now();    // record the starting time of trajectory execution
-        auto traject = goal_ptr -> trajectory;
-        float* final_pose_ptr = rr_.getTrajectoryFinalPoint(traject);
-        rr_.updateGoalTrajectory(traject);
+        auto traject = goal_ptr->trajectory;
+        float* final_pose = rr_.getTrajectoryFinalPoint(traject);
 
-        while(ros::ok() && active_goal_)
+        rr_.updateGoalTrajectory(traject);     // Send trajectory to STM32 **once**
+
+        ros::Time start_time = ros::Time::now();
+        as_.setSucceeded();
+        while (ros::ok() && active_goal_)
         {
-            if(rr_.checkByte())
-            {
-                ROS_INFO("read data");
-                rr_.readJointState(rr_.byteArray, sizeof(rr_.byteArray));
-            }
-
-            if (preempt_requested_)
-            {
+            if (preempt_requested_) {
                 ROS_INFO("Goal preempted");
                 control_msgs::FollowJointTrajectoryResult result;
                 result.error_code = result.INVALID_GOAL;
@@ -65,10 +56,8 @@ class rrArmTrajectoryServer
                 return;
             }
 
-            if(rr_.checkTrajectoryFinished(final_pose_ptr, 6))
-            {
-                ROS_INFO("Trajectory execution finished successfully");
-                executed_ = true;
+            if (rr_.checkTrajectoryFinished(final_pose, 6)) {
+                ROS_INFO("Trajectory finished successfully");
                 control_msgs::FollowJointTrajectoryResult result;
                 result.error_code = result.SUCCESSFUL;
                 as_.setSucceeded(result);
@@ -76,20 +65,18 @@ class rrArmTrajectoryServer
                 break;
             }
 
-            if((ros::Time::now() - start_time) > ros::Duration(TIMEOUT_DURATION))   //
-            {
-                ROS_INFO("Trajectory execution timed out");
+            if ((ros::Time::now() - start_time) > ros::Duration(0.01)) {   
+                ROS_WARN("Trajectory timeout");
                 control_msgs::FollowJointTrajectoryResult result;
-                result.error_code = result.OLD_HEADER_TIMESTAMP;
+                result.error_code = result.OLD_HEADER_TIMESTAMP;   // or TIMEOUT
                 as_.setAborted(result);
                 active_goal_ = false;
-                executed_ = false;
                 break;
             }
-            ros::Duration(0.02).sleep();
-            ros::spinOnce();
+
+            ros::Duration(0.05).sleep();     // small sleep only
         }
-    };
+    }
 
     void preemptedCallback()
     {
@@ -147,28 +134,54 @@ bool callPoses(rArm::callRobot::Request &req, rArm::callRobot::Response &res)
 int main(int argc, char* argv[])
 {
     ros::init(argc, argv, "rr_arm_node");
-    ros::Time::init();
     ros::NodeHandle nh;
+
     rrArmTrajectoryServer server(nh);
-    ros::Publisher joint_state_pub_ = nh.advertise<sensor_msgs::JointState>("/joint_states", 1000);
+
+    ros::Publisher joint_state_pub = nh.advertise<sensor_msgs::JointState>("/joint_states", 1000);
     ros::ServiceServer pose_service = nh.advertiseService("call_robot_poses", callPoses);
+
     ros::Rate loop_rate(100);
+
     rr_.BackHome();
-    ROS_INFO("Joint state initialized\n");
-    while(ros::ok())
+    ROS_INFO("=== rr_arm_node started - 100Hz publishing ===");
+
+    int publish_count = 0;
+    ros::Time last_print = ros::Time::now();
+
+    while (ros::ok())
     {
-        if(rr_.checkByte())
+        bool read_success = false;
+
+        if (rr_.checkByte())
         {
             rr_.readJointState(rr_.byteArray, sizeof(rr_.byteArray));
-            float* _joint_state = rr_.getJointState();
+            float* pos = rr_.getJointState();
+
             sensor_msgs::JointState js;
             js.header.stamp = ros::Time::now();
             js.name = {"joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"};
-            js.position.assign(_joint_state, _joint_state + 6);
-            joint_state_pub_.publish(js);
+            js.position.assign(pos, pos + 6);
+
+            joint_state_pub.publish(js);
+            read_success = true;
+            publish_count++;
         }
+
+        // Print stats every 1 second
+        if ((ros::Time::now() - last_print).toSec() >= 1.0)
+        {
+            ROS_INFO("Publish rate: %d Hz  |  checkByte success = %s", 
+                     publish_count, 
+                     read_success ? "YES (this cycle)" : "NO");
+
+            publish_count = 0;
+            last_print = ros::Time::now();
+        }
+
         ros::spinOnce();
         loop_rate.sleep();
     }
+
     return 0;
 }

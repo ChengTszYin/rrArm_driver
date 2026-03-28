@@ -138,7 +138,10 @@ int RR_Arm::checkByte()
         return 0;
     }
     std::string rawByte = ser_ptr->read(ser_ptr->available());
-    if(rawByte.size() == js_byte_size_ )
+    uint8_t check = checksum(rawByte, 24);
+    ROS_INFO("rawByte: %u", rawByte[24]);
+    ROS_INFO("checksum: %u", check);
+    if(rawByte.size() == js_byte_size_)
     {
         memcpy(byteArray, rawByte.data(), js_byte_size_-1);
         return 1;
