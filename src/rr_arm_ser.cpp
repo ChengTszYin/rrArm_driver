@@ -125,7 +125,7 @@ void RR_Arm::driveSpeed(short int &step, const float (&angle)[6], const float (&
     }
     memcpy(&buffer[2],  angle_deg, 6 * sizeof(float));
     memcpy(&buffer[26], velocity_deg_per_sec, 6 * sizeof(float));  // change if you don't want to convert velocity
-    uint8_t crc = getCRC(buffer, 51);
+    uint8_t crc = getCRC(buffer, 50);
     buffer[50] = crc;
     ser_ptr->write(buffer, sizeof(buffer));
     ros::Duration(0.08).sleep();    //minimum time for stm32 to execute each segment
@@ -138,12 +138,11 @@ int RR_Arm::checkByte()
         return 0;
     }
     std::string rawByte = ser_ptr->read(ser_ptr->available());
-    uint8_t check = checksum(rawByte, 24);
-    ROS_INFO("rawByte: %u", rawByte[24]);
-    ROS_INFO("checksum: %u", check);
-    if(rawByte.size() == js_byte_size_)
+    uint8_t check = checksum(rawByte, js_byte_size_ - 1);
+    if(rawByte.size() == js_byte_size_ && check == static_cast<uint8_t>(rawByte[24]))
     {
-        memcpy(byteArray, rawByte.data(), js_byte_size_-1);
+        // ROS_INFO("received correctly");
+        memcpy(byteArray, rawByte.data(), js_byte_size_ - 1);
         return 1;
     }
     else
@@ -194,9 +193,9 @@ uint8_t RR_Arm::checksum(std::string& data, size_t len) {
     return sum;
 }
 
-uint8_t RR_Arm::getCRC(uint8_t* data, uint8_t len) {
+uint8_t RR_Arm::getCRC(uint8_t* data, size_t len) {
     uint8_t crc = 0;
-    for (uint8_t i = 0; i < len; ++i) {
+    for (size_t i = 0; i < len; ++i) {
        crc += data[i];
     }
     return crc;

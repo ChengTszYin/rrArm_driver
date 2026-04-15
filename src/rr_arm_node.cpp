@@ -137,7 +137,6 @@ int main(int argc, char* argv[])
     ros::NodeHandle nh;
 
     rrArmTrajectoryServer server(nh);
-
     ros::Publisher joint_state_pub = nh.advertise<sensor_msgs::JointState>("/joint_states", 1000);
     ros::ServiceServer pose_service = nh.advertiseService("call_robot_poses", callPoses);
 
@@ -146,8 +145,8 @@ int main(int argc, char* argv[])
     rr_.BackHome();
     ROS_INFO("=== rr_arm_node started - 100Hz publishing ===");
 
-    int publish_count = 0;
-    ros::Time last_print = ros::Time::now();
+    // int publish_count = 0;
+    // ros::Time last_print = ros::Time::now();
 
     while (ros::ok())
     {
@@ -164,20 +163,19 @@ int main(int argc, char* argv[])
             js.position.assign(pos, pos + 6);
 
             joint_state_pub.publish(js);
-            read_success = true;
-            publish_count++;
+            // read_success = true;
+            // publish_count++;
         }
 
-        // Print stats every 1 second
-        if ((ros::Time::now() - last_print).toSec() >= 1.0)
-        {
-            ROS_INFO("Publish rate: %d Hz  |  checkByte success = %s", 
-                     publish_count, 
-                     read_success ? "YES (this cycle)" : "NO");
+        // if ((ros::Time::now() - last_print).toSec() >= 1.0)
+        // {
+        //     ROS_INFO("Publish rate: %d Hz  |  checkByte success = %s", 
+        //              publish_count, 
+        //              read_success ? "YES (this cycle)" : "NO");
 
-            publish_count = 0;
-            last_print = ros::Time::now();
-        }
+        //     publish_count = 0;
+        //     last_print = ros::Time::now();
+        // }
 
         ros::spinOnce();
         loop_rate.sleep();
